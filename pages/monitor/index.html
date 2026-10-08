@@ -1,0 +1,1363 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>XMonitor</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #0a0e14;
+      --surface: #161d2b;
+      --card: #1c2433;
+      --card-hover: #222b3d;
+      --text: #e7eef4;
+      --text-dim: #8b9ba8;
+      --text-muted: #5a6b7a;
+      --cyan: #38bdf8;
+      --emerald: #6ee7b7;
+      --border: #2a3648;
+    }
+
+    :root.light {
+      --bg: #f4f7f6;
+      --surface: #ffffff;
+      --card: #ffffff;
+      --card-hover: #f1f8f5;
+      --text: #18202a;
+      --text-dim: #687483;
+      --text-muted: #7c8b98;
+      --cyan: #1687c5;
+      --emerald: #138a5a;
+      --border: #d9e2df;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: clamp(1.5rem, 3vw, 2.5rem);
+    }
+
+    /* Header */
+    .header {
+      margin-bottom: 2rem;
+    }
+
+    .title {
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: var(--text-dim);
+      font-size: 0.9375rem;
+    }
+
+    .status-bar {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-top: 1.25rem;
+    }
+
+    .status-chip {
+      padding: 0.5rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 0.8125rem;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .status-chip.active {
+      background: rgba(110, 231, 183, 0.12);
+      border-color: var(--emerald);
+      color: var(--emerald);
+    }
+
+    .status-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* Workspace */
+    .workspace {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 1fr 280px;
+      gap: 2.5rem;
+      min-height: 600px;
+      margin-bottom: 2.5rem;
+    }
+
+    .canvas-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #svg-canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    #svg-canvas path.visible-line {
+      fill: none;
+      stroke: var(--emerald);
+      stroke-width: 3;
+      stroke-linecap: round;
+      opacity: 0.7;
+      filter: drop-shadow(0 0 6px rgba(110, 231, 183, 0.3));
+      transition: all 0.2s;
+      pointer-events: none;
+    }
+
+    #svg-canvas path.hit-area {
+      fill: none;
+      stroke: transparent;
+      stroke-width: 20;
+      stroke-linecap: round;
+      pointer-events: stroke;
+      cursor: pointer;
+      opacity: 0;
+    }
+
+    #svg-canvas path.visible-line.hovered {
+      stroke-width: 4;
+      stroke-dasharray: 8 4;
+      opacity: 1;
+    }
+
+    #svg-canvas path.dragging {
+      stroke: var(--cyan);
+      stroke-dasharray: 5 3;
+      opacity: 0.6;
+      animation: dash 0.5s linear infinite;
+    }
+
+    @keyframes dash {
+      to { stroke-dashoffset: -8; }
+    }
+
+    /* Column */
+    .column {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .column-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.625rem;
+      padding: 0.625rem 2rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.875rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+      width: 50%;
+      max-width: 12rem;
+      margin: 0 auto;
+    }
+
+    .column-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1.5rem;
+      height: 1.5rem;
+      padding: 0 0.375rem;
+      background: var(--card);
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--cyan);
+    }
+
+    .cards-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      overflow-y: auto;
+      max-height: 70vh;
+      padding-right: 0.25rem;
+    }
+
+    .cards-area .card {
+      width: 140px;
+      height: 140px;
+      flex-shrink: 0;
+    }
+
+    .cards-area::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .cards-area::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .cards-area::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 999px;
+    }
+
+    /* Card */
+    .card {
+      position: relative;
+      aspect-ratio: 1;
+      padding: 1.25rem;
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 1rem;
+      cursor: grab;
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card:active {
+      cursor: grabbing;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      border-color: var(--cyan);
+      background: var(--card-hover);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .card.active {
+      background: rgba(110, 231, 183, 0.08);
+      border-color: var(--emerald);
+      box-shadow: 0 0 0 1px var(--emerald), 0 4px 16px rgba(110, 231, 183, 0.2);
+    }
+
+    .card.selected {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+    }
+
+    .card.disabled {
+      opacity: 0.4;
+    }
+
+    .card-name {
+      font-weight: 600;
+      font-size: 1rem;
+      text-align: center;
+      word-break: break-word;
+    }
+
+    /* Tooltip */
+    .tooltip {
+      position: absolute;
+      bottom: calc(100% + 0.75rem);
+      left: 50%;
+      transform: translateX(-50%) translateY(6px);
+      min-width: 13rem;
+      padding: 0.875rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.2s;
+      z-index: 100;
+      font-size: 0.8125rem;
+    }
+
+    .card:hover .tooltip {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .tooltip-title {
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.25rem;
+      color: var(--text-dim);
+    }
+
+    .tooltip-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .tooltip-row span:first-child {
+      color: var(--text-muted);
+    }
+
+    /* Control Panel */
+    .control-panel {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .save-btn {
+      height: 10rem;
+      border: none;
+      border-radius: 1.25rem;
+      background: linear-gradient(135deg, var(--emerald) 0%, #00d4aa 100%);
+      color: var(--bg);
+      font-size: 1.25rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      box-shadow: 0 8px 24px rgba(110, 231, 183, 0.3);
+      transition: all 0.25s;
+    }
+
+    .save-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 32px rgba(110, 231, 183, 0.4);
+    }
+
+    .save-icon {
+      width: 3.5rem;
+      height: 3.5rem;
+      border: 2.5px solid currentColor;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 1.75rem;
+    }
+
+    .control-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 0.625rem;
+    }
+
+    .control-btn {
+      padding: 0.875rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      background: var(--card);
+      color: var(--text);
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .control-btn:hover {
+      background: var(--card-hover);
+      border-color: var(--cyan);
+    }
+
+    .hint {
+      padding: 1rem;
+      background: var(--surface);
+      border-radius: 0.75rem;
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
+
+    /* Forms */
+    .forms {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    .form {
+      padding: 1.75rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+    }
+
+    .form-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .form-title {
+      font-size: 1.0625rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .form-subtitle {
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+    }
+
+    .btn-cancel {
+      padding: 0.5rem 0.875rem;
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      background: transparent;
+      color: var(--text-dim);
+      font-size: 0.8125rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-cancel:hover {
+      background: var(--card);
+      color: var(--text);
+    }
+
+    .field {
+      margin-bottom: 1.125rem;
+    }
+
+    .field-label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text-dim);
+    }
+
+    .field-input,
+    .field-select {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 0.625rem;
+      color: var(--text);
+      font-size: 0.9375rem;
+      transition: all 0.2s;
+    }
+
+    .field-input:focus,
+    .field-select:focus {
+      outline: none;
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1);
+    }
+
+    .field-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .checkbox-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      margin-top: 1rem;
+    }
+
+    .checkbox-wrap input {
+      width: 1.125rem;
+      height: 1.125rem;
+      cursor: pointer;
+    }
+
+    .checkbox-wrap label {
+      font-size: 0.9375rem;
+      color: var(--text-dim);
+      cursor: pointer;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: 0.625rem;
+      background: var(--card);
+      color: var(--text);
+      font-size: 0.9375rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      background: var(--cyan);
+      border-color: var(--cyan);
+      color: var(--bg);
+    }
+
+    .btn-primary:hover {
+      background: #22a9e6;
+      box-shadow: 0 6px 16px rgba(56, 189, 248, 0.3);
+    }
+
+    .btn-danger {
+      color: #ff6b6b;
+      border-color: #ff6b6b;
+    }
+
+    .btn-danger:hover {
+      background: rgba(255, 107, 107, 0.1);
+    }
+
+    /* Message */
+    .message {
+      margin-top: 1.5rem;
+      padding: 1rem 1.25rem;
+      border-radius: 0.75rem;
+      font-size: 0.9375rem;
+      display: none;
+    }
+
+    .message.show {
+      display: block;
+    }
+
+    .message.info {
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid var(--cyan);
+      color: var(--cyan);
+    }
+
+    .message.success {
+      background: rgba(110, 231, 183, 0.12);
+      border: 1px solid var(--emerald);
+      color: var(--emerald);
+    }
+
+    .message.error {
+      background: rgba(255, 107, 107, 0.12);
+      border: 1px solid #ff6b6b;
+      color: #ff9999;
+    }
+
+    .control-panel .message {
+      margin-top: 0;
+    }
+
+    /* Empty */
+    .empty {
+      padding: 3rem 1.5rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      border: 2px dashed var(--border);
+      border-radius: 1rem;
+    }
+
+    .empty-icon {
+      font-size: 2.5rem;
+      opacity: 0.3;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Dragging */
+    body.dragging {
+      cursor: grabbing !important;
+    }
+
+    body.dragging * {
+      cursor: grabbing !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .workspace {
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+      }
+
+      .control-panel {
+        grid-column: 1 / -1;
+        flex-direction: row;
+        align-items: stretch;
+      }
+
+      .save-btn {
+        flex: 0 0 14rem;
+        height: auto;
+      }
+
+      .control-btns {
+        flex: 1;
+        flex-direction: row;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .workspace {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+      }
+
+      .forms {
+        grid-template-columns: 1fr;
+      }
+
+      .control-panel {
+        flex-direction: column;
+      }
+
+      .save-btn {
+        height: 10rem;
+      }
+
+      .control-btns {
+        flex-direction: column;
+      }
+
+      .canvas-layer {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <h1 class="title">XMonitor</h1>
+      <p class="subtitle">点击账号卡片拖拽到目标卡片建立连线</p>
+      <div class="status-bar" id="statusBar"></div>
+    </header>
+
+    <!-- Workspace -->
+    <section class="workspace">
+      <div class="canvas-layer">
+        <svg id="svg-canvas"></svg>
+      </div>
+
+      <!-- Accounts Column -->
+      <div class="column">
+        <div class="column-label">
+          监控账号
+          <span class="column-count" id="accountCount">0</span>
+        </div>
+        <div class="cards-area" id="accountCards"></div>
+      </div>
+
+      <!-- Targets Column -->
+      <div class="column">
+        <div class="column-label">
+          推送目标
+          <span class="column-count" id="targetCount">0</span>
+        </div>
+        <div class="cards-area" id="targetCards"></div>
+      </div>
+
+      <!-- Control Panel -->
+      <aside class="control-panel">
+        <button class="save-btn" id="btnSave">
+          <div class="save-icon">▶</div>
+          <div>保存关系</div>
+        </button>
+        <div class="control-btns">
+          <button class="control-btn" id="btnRefresh">🔄 刷新</button>
+          <button class="control-btn" id="btnCheck">⚡ 立即检查</button>
+        </div>
+        <div class="message" id="message"></div>
+        <div class="hint">
+          拖拽卡片建立连线<br>
+          点击卡片进入编辑
+        </div>
+      </aside>
+    </section>
+
+    <!-- Forms -->
+    <section class="forms">
+      <!-- Account Form -->
+      <div class="form">
+        <div class="form-header">
+          <div>
+            <div class="form-title" id="accountTitle">添加监控账号</div>
+            <div class="form-subtitle" id="accountSubtitle">输入 X 用户名</div>
+          </div>
+          <button class="btn-cancel" id="btnCancelAccount" hidden>取消</button>
+        </div>
+
+        <div class="field">
+          <label class="field-label">X 用户名</label>
+          <input class="field-input" id="inputUsername" placeholder="openai" maxlength="15" />
+        </div>
+
+        <div class="field">
+          <label class="field-label">显示名称</label>
+          <input class="field-input" id="inputAccountLabel" placeholder="OpenAI" maxlength="80" />
+        </div>
+
+        <div class="checkbox-wrap">
+          <input type="checkbox" id="checkEnabled" checked />
+          <label for="checkEnabled">启用监控</label>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-primary" id="btnAddAccount">添加账号</button>
+          <button class="btn btn-danger" id="btnDeleteAccount" hidden>删除</button>
+        </div>
+      </div>
+
+      <!-- Target Form -->
+      <div class="form">
+        <div class="form-header">
+          <div>
+            <div class="form-title" id="targetTitle">添加推送目标</div>
+            <div class="form-subtitle" id="targetSubtitle">使用 /xmonitor where 查询</div>
+          </div>
+          <button class="btn-cancel" id="btnCancelTarget" hidden>取消</button>
+        </div>
+
+        <div class="field">
+          <label class="field-label">显示名称</label>
+          <input class="field-input" id="inputTargetLabel" placeholder="测试群" maxlength="80" />
+        </div>
+
+        <div class="field">
+          <label class="field-label">平台实例 ID（platform_id）</label>
+          <input class="field-input" id="inputPlatform" placeholder="onebot_1" maxlength="120" />
+        </div>
+
+        <div class="field">
+          <label class="field-label">会话类型（message_type）</label>
+          <select class="field-select" id="selectMessageType">
+            <option value="GroupMessage">群聊</option>
+            <option value="FriendMessage">私聊</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label class="field-label">会话 ID（session_id）</label>
+          <input class="field-input" id="inputSession" placeholder="123456789" maxlength="300" />
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-primary" id="btnAddTarget">添加目标</button>
+          <button class="btn" id="btnTestTarget" hidden>测试</button>
+          <button class="btn btn-danger" id="btnDeleteTarget" hidden>删除</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script type="module">
+    const bridge = window.AstrBotPluginView || window.AstrBotPluginPage;
+
+    const state = {
+      graph: { accounts: [], targets: [], bindings: [] },
+      selectedAccountId: null,
+      selectedTargetId: null,
+      editAccountId: null,
+      editTargetId: null,
+      dragSourceId: null,
+      dragPath: null,
+      dragPointerId: null,
+      dragElement: null
+    };
+
+    const $ = id => document.getElementById(id);
+    const genId = p => `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    const hasLink = (aid, tid) => state.graph.bindings.some(b => b.account_id === aid && b.target_id === tid);
+    const isAccountActive = aid => state.graph.bindings.some(b => b.account_id === aid);
+    const isTargetActive = tid => state.graph.bindings.some(b => b.target_id === tid);
+
+    let messageTimer = null;
+    function msg(text, type = 'info', duration = 4000) {
+      const bar = $('message');
+      if (messageTimer) clearTimeout(messageTimer);
+      bar.textContent = text;
+      bar.className = `message show ${type}`;
+      if (duration > 0) {
+        messageTimer = setTimeout(() => bar.classList.remove('show'), duration);
+      }
+    }
+
+    function link(aid, tid) {
+      if (!aid || !tid) return;
+      if (hasLink(aid, tid)) {
+        msg('连线已存在', 'info');
+        return;
+      }
+      state.graph.bindings.push({ account_id: aid, target_id: tid });
+      msg('已建立连线', 'success');
+      draw();
+    }
+
+    function unlink(aid, tid) {
+      state.graph.bindings = state.graph.bindings.filter(b => !(b.account_id === aid && b.target_id === tid));
+      msg('已删除连线', 'info');
+      draw();
+    }
+
+    function drawAccounts() {
+      const zone = $('accountCards');
+      zone.innerHTML = '';
+
+      if (!state.graph.accounts.length) {
+        zone.innerHTML = '<div class="empty"><div class="empty-icon">📭</div>暂无账号</div>';
+        $('accountCount').textContent = '0';
+        return;
+      }
+
+      state.graph.accounts.forEach(acc => {
+        const card = document.createElement('div');
+        card.className = `card account-card ${isAccountActive(acc.id) ? 'active' : ''} ${!acc.enabled ? 'disabled' : ''} ${state.selectedAccountId === acc.id ? 'selected' : ''}`;
+        card.dataset.id = acc.id;
+
+        card.innerHTML = `
+          <div class="tooltip">
+            <div class="tooltip-title">${esc(acc.label || '@' + acc.username)}</div>
+            <div class="tooltip-row"><span>用户名</span><span>@${esc(acc.username)}</span></div>
+            <div class="tooltip-row"><span>状态</span><span>${acc.enabled ? '✓ 启用' : '✗ 停用'}</span></div>
+            <div class="tooltip-row"><span>连线</span><span>${state.graph.bindings.filter(b => b.account_id === acc.id).length}</span></div>
+          </div>
+          <div class="card-name">${esc(acc.label || '@' + acc.username)}</div>
+        `;
+
+        let clickCount = 0;
+        let clickTimer = null;
+
+        card.addEventListener('pointerdown', e => {
+          clickCount++;
+          state.dragPointerId = e.pointerId;
+          state.dragElement = card;
+          try { card.setPointerCapture(e.pointerId); } catch (_) {}
+
+          if (clickCount === 1) {
+            clickTimer = setTimeout(() => {
+              startDrag(acc.id, e);
+              clickCount = 0;
+            }, 250);
+          } else if (clickCount === 2) {
+            clearTimeout(clickTimer);
+            clickCount = 0;
+            editAccount(acc);
+          }
+        });
+
+        card.addEventListener('pointercancel', () => {
+          if (state.dragSourceId === acc.id) stopDrag();
+        });
+
+        zone.appendChild(card);
+      });
+
+      $('accountCount').textContent = state.graph.accounts.length;
+    }
+
+    function drawTargets() {
+      const zone = $('targetCards');
+      zone.innerHTML = '';
+
+      if (!state.graph.targets.length) {
+        zone.innerHTML = '<div class="empty"><div class="empty-icon">📪</div>暂无目标</div>';
+        $('targetCount').textContent = '0';
+        return;
+      }
+
+      state.graph.targets.forEach(tgt => {
+        const card = document.createElement('div');
+        card.className = `card target-card ${isTargetActive(tgt.id) ? 'active' : ''} ${state.selectedTargetId === tgt.id ? 'selected' : ''}`;
+        card.dataset.id = tgt.id;
+
+        const typeLabel = tgt.message_type === 'GroupMessage' ? '群聊' : '私聊';
+
+        card.innerHTML = `
+          <div class="tooltip">
+            <div class="tooltip-title">${esc(tgt.label)}</div>
+            <div class="tooltip-row"><span>类型</span><span>${typeLabel}</span></div>
+            <div class="tooltip-row"><span>平台</span><span>${esc(tgt.platform_id)}</span></div>
+            <div class="tooltip-row"><span>会话</span><span>${esc(tgt.session_id)}</span></div>
+            <div class="tooltip-row"><span>连线</span><span>${state.graph.bindings.filter(b => b.target_id === tgt.id).length}</span></div>
+          </div>
+          <div class="card-name">${esc(tgt.label)}</div>
+        `;
+
+        let clickCount = 0;
+        let clickTimer = null;
+
+        card.addEventListener('pointerup', e => {
+          if (state.dragSourceId) {
+            e.stopPropagation();
+            link(state.dragSourceId, tgt.id);
+            stopDrag();
+            return;
+          }
+
+          clickCount++;
+
+          if (clickCount === 1) {
+            clickTimer = setTimeout(() => {
+              clickCount = 0;
+            }, 250);
+          } else if (clickCount === 2) {
+            clearTimeout(clickTimer);
+            clickCount = 0;
+            editTarget(tgt);
+          }
+        });
+
+        zone.appendChild(card);
+      });
+
+      $('targetCount').textContent = state.graph.targets.length;
+    }
+
+    function drawLines() {
+      const svg = $('svg-canvas');
+      const workspace = document.querySelector('.workspace');
+      const rect = workspace.getBoundingClientRect();
+
+      svg.innerHTML = '';
+
+      state.graph.bindings.forEach(bind => {
+        const accCard = workspace.querySelector(`.account-card[data-id="${CSS.escape(bind.account_id)}"]`);
+        const tgtCard = workspace.querySelector(`.target-card[data-id="${CSS.escape(bind.target_id)}"]`);
+
+        if (!accCard || !tgtCard) return;
+
+        const ar = accCard.getBoundingClientRect();
+        const tr = tgtCard.getBoundingClientRect();
+
+        // 从卡片右侧稍微延伸出来，避免被卡片挡住
+        const x1 = ar.right - rect.left + 10;
+        const y1 = ar.top + ar.height / 2 - rect.top;
+        const x2 = tr.left - rect.left - 10;
+        const y2 = tr.top + tr.height / 2 - rect.top;
+
+        const dx = x2 - x1;
+        const cx = dx * 0.5;
+
+        const pathD = `M${x1},${y1} C${x1+cx},${y1} ${x2-cx},${y2} ${x2},${y2}`;
+
+        // 可见的连线（先绘制，在下层）
+        const visibleLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        visibleLine.setAttribute('d', pathD);
+        visibleLine.classList.add('visible-line');
+
+        // 透明的点击区域（后绘制，在上层）
+        const hitArea = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        hitArea.setAttribute('d', pathD);
+        hitArea.classList.add('hit-area');
+        hitArea.addEventListener('click', e => {
+          e.stopPropagation();
+          unlink(bind.account_id, bind.target_id);
+        });
+
+        // hover 触发
+        hitArea.addEventListener('mouseenter', () => {
+          visibleLine.classList.add('hovered');
+        });
+
+        hitArea.addEventListener('mouseleave', () => {
+          visibleLine.classList.remove('hovered');
+        });
+
+        svg.appendChild(visibleLine);
+        svg.appendChild(hitArea);
+      });
+
+      if (state.dragPath) {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', state.dragPath);
+        path.classList.add('dragging');
+        svg.appendChild(path);
+      }
+    }
+
+    function startDrag(aid, e) {
+      state.dragSourceId = aid;
+      state.selectedAccountId = aid;
+      document.body.classList.add('dragging');
+      updateDragPath(e);
+      draw();
+    }
+
+    function updateDragPath(e) {
+      if (!state.dragSourceId) return;
+
+      const workspace = document.querySelector('.workspace');
+      const rect = workspace.getBoundingClientRect();
+      const accCard = workspace.querySelector(`.account-card[data-id="${CSS.escape(state.dragSourceId)}"]`);
+      if (!accCard) return;
+
+      const ar = accCard.getBoundingClientRect();
+
+      const x1 = ar.right - rect.left;
+      const y1 = ar.top + ar.height / 2 - rect.top;
+      const x2 = e.clientX - rect.left;
+      const y2 = e.clientY - rect.top;
+
+      const dx = x2 - x1;
+      const cx = dx * 0.5;
+
+      state.dragPath = `M${x1},${y1} C${x1+cx},${y1} ${x2-cx},${y2} ${x2},${y2}`;
+      drawLines();
+    }
+
+    function stopDrag() {
+      if (state.dragElement && state.dragPointerId !== null) {
+        try {
+          if (state.dragElement.hasPointerCapture?.(state.dragPointerId)) {
+            state.dragElement.releasePointerCapture(state.dragPointerId);
+          }
+        } catch (_) {}
+      }
+      state.dragSourceId = null;
+      state.dragPath = null;
+      state.dragPointerId = null;
+      state.dragElement = null;
+      document.body.classList.remove('dragging');
+      drawLines();
+    }
+
+    function draw() {
+      drawAccounts();
+      drawTargets();
+      requestAnimationFrame(drawLines);
+    }
+
+    function bindScrollRedraw() {
+      document.querySelectorAll('.cards-area').forEach(zone => {
+        zone.addEventListener('scroll', () => requestAnimationFrame(drawLines), { passive: true });
+      });
+    }
+
+    function editAccount(acc) {
+      state.selectedAccountId = acc.id;
+      state.selectedTargetId = null;
+      state.editAccountId = acc.id;
+      state.editTargetId = null;
+
+      $('inputUsername').value = acc.username;
+      $('inputAccountLabel').value = acc.label || '';
+      $('checkEnabled').checked = acc.enabled !== false;
+
+      $('accountTitle').textContent = '编辑账号';
+      $('accountSubtitle').textContent = '修改后点击保存';
+      $('btnAddAccount').textContent = '保存';
+      $('btnDeleteAccount').hidden = false;
+      $('btnCancelAccount').hidden = false;
+
+      resetTargetForm();
+      draw();
+    }
+
+    function editTarget(tgt) {
+      state.selectedTargetId = tgt.id;
+      state.selectedAccountId = null;
+      state.editTargetId = tgt.id;
+      state.editAccountId = null;
+
+      $('inputTargetLabel').value = tgt.label || '';
+      $('inputPlatform').value = tgt.platform_id;
+      $('selectMessageType').value = tgt.message_type;
+      $('inputSession').value = tgt.session_id;
+
+      $('targetTitle').textContent = '编辑目标';
+      $('targetSubtitle').textContent = '修改后点击保存';
+      $('btnAddTarget').textContent = '保存';
+      $('btnTestTarget').hidden = false;
+      $('btnDeleteTarget').hidden = false;
+      $('btnCancelTarget').hidden = false;
+
+      resetAccountForm();
+      draw();
+    }
+
+    function resetAccountForm() {
+      state.editAccountId = null;
+      state.selectedAccountId = null;
+
+      $('inputUsername').value = '';
+      $('inputAccountLabel').value = '';
+      $('checkEnabled').checked = true;
+
+      $('accountTitle').textContent = '添加监控账号';
+      $('accountSubtitle').textContent = '输入 X 用户名';
+      $('btnAddAccount').textContent = '添加账号';
+      $('btnDeleteAccount').hidden = true;
+      $('btnCancelAccount').hidden = true;
+    }
+
+    function resetTargetForm() {
+      state.editTargetId = null;
+      state.selectedTargetId = null;
+
+      $('inputTargetLabel').value = '';
+      $('inputPlatform').value = '';
+      $('selectMessageType').value = 'GroupMessage';
+      $('inputSession').value = '';
+
+      $('targetTitle').textContent = '添加推送目标';
+      $('targetSubtitle').textContent = '使用 /xmonitor where 查询';
+      $('btnAddTarget').textContent = '添加目标';
+      $('btnTestTarget').hidden = true;
+      $('btnDeleteTarget').hidden = true;
+      $('btnCancelTarget').hidden = true;
+    }
+
+    async function loadStatus() {
+      try {
+        const s = await bridge.apiGet('status');
+        const bar = $('statusBar');
+        bar.innerHTML = `
+          <div class="status-chip ${s.api_configured ? 'active' : ''}">
+            <span class="status-dot"></span>
+            ${s.api_configured ? 'Token 已配置' : 'Token 未配置'}
+          </div>
+          <div class="status-chip ${s.monitor_running ? 'active' : ''}">
+            <span class="status-dot"></span>
+            ${s.monitor_running ? '运行中' : '未运行'}
+          </div>
+          <div class="status-chip">${s.accounts} 账号</div>
+          <div class="status-chip">${s.targets} 目标</div>
+          <div class="status-chip">${s.bindings} 连线</div>
+        `;
+      } catch (e) {
+        msg('状态加载失败', 'error');
+      }
+    }
+
+    async function load() {
+      try {
+        state.graph = await bridge.apiGet('graph');
+        resetAccountForm();
+        resetTargetForm();
+        await loadStatus();
+        draw();
+        msg('已加载', 'success');
+      } catch (e) {
+        msg('加载失败: ' + e, 'error');
+      }
+    }
+
+    async function save() {
+      try {
+        await bridge.apiPost('graph/save', state.graph);
+        await loadStatus();
+        msg('保存成功', 'success');
+      } catch (e) {
+        msg('保存失败: ' + e, 'error');
+      }
+    }
+
+    async function check() {
+      const button = $('btnCheck');
+      const originalText = button.textContent;
+      try {
+        button.disabled = true;
+        button.textContent = '⏳ 检查中...';
+        msg('正在检查已启用账号；如果服务器网络较慢，这一步可能需要几十秒。', 'info', 0);
+        const result = await bridge.apiPost('check', {});
+        await loadStatus();
+        const elapsed = Number.isFinite(Number(result?.elapsed_seconds))
+          ? `耗时 ${result.elapsed_seconds} 秒。`
+          : '';
+        const op = result?.operation_id ? `操作 ${result.operation_id}。` : '';
+        msg(`${result?.message || '立即检查完成。'}${elapsed}${op}`, 'success', 10000);
+      } catch (e) {
+        msg('立即检查失败: ' + e, 'error', 10000);
+      } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
+    }
+
+    $('btnAddAccount').onclick = () => {
+      const username = $('inputUsername').value.trim().replace(/^@/, '').toLowerCase();
+      const label = $('inputAccountLabel').value.trim() || `@${username}`;
+      const enabled = $('checkEnabled').checked;
+
+      if (!/^[a-z0-9_]{1,15}$/.test(username)) {
+        msg('用户名格式错误', 'error');
+        return;
+      }
+
+      const cur = state.graph.accounts.find(a => a.id === state.editAccountId);
+      const dup = state.graph.accounts.some(a => a !== cur && a.username === username);
+
+      if (dup) {
+        msg('用户名已存在', 'error');
+        return;
+      }
+
+      if (cur) {
+        cur.username = username;
+        cur.label = label;
+        cur.enabled = enabled;
+        msg('已更新', 'success');
+      } else {
+        state.graph.accounts.push({ id: genId('account'), username, label, enabled });
+        msg('已添加', 'success');
+      }
+
+      resetAccountForm();
+      draw();
+    };
+
+    $('btnDeleteAccount').onclick = () => {
+      if (!state.editAccountId) return;
+      state.graph.accounts = state.graph.accounts.filter(a => a.id !== state.editAccountId);
+      state.graph.bindings = state.graph.bindings.filter(b => b.account_id !== state.editAccountId);
+      resetAccountForm();
+      draw();
+      msg('已删除', 'info');
+    };
+
+    $('btnCancelAccount').onclick = () => {
+      resetAccountForm();
+      draw();
+    };
+
+    $('btnAddTarget').onclick = () => {
+      const label = $('inputTargetLabel').value.trim();
+      const platformId = $('inputPlatform').value.trim();
+      const sessionId = $('inputSession').value.trim();
+      const messageType = $('selectMessageType').value;
+
+      if (!label || !platformId || !sessionId) {
+        msg('请填写完整', 'error');
+        return;
+      }
+
+      const cur = state.graph.targets.find(t => t.id === state.editTargetId);
+      const dup = state.graph.targets.some(t =>
+        t !== cur && t.platform_id === platformId && t.message_type === messageType && t.session_id === sessionId
+      );
+
+      if (dup) {
+        msg('目标已存在', 'error');
+        return;
+      }
+
+      if (cur) {
+        cur.label = label;
+        cur.platform_id = platformId;
+        cur.message_type = messageType;
+        cur.session_id = sessionId;
+        msg('已更新', 'success');
+      } else {
+        state.graph.targets.push({ id: genId('target'), label, platform_id: platformId, message_type: messageType, session_id: sessionId });
+        msg('已添加', 'success');
+      }
+
+      resetTargetForm();
+      draw();
+    };
+
+    $('btnDeleteTarget').onclick = () => {
+      if (!state.editTargetId) return;
+      state.graph.targets = state.graph.targets.filter(t => t.id !== state.editTargetId);
+      state.graph.bindings = state.graph.bindings.filter(b => b.target_id !== state.editTargetId);
+      resetTargetForm();
+      draw();
+      msg('已删除', 'info');
+    };
+
+    $('btnCancelTarget').onclick = () => {
+      resetTargetForm();
+      draw();
+    };
+
+    $('btnTestTarget').onclick = async () => {
+      const tgt = state.graph.targets.find(t => t.id === state.editTargetId);
+      if (!tgt) return;
+      try {
+        msg('发送中...', 'info');
+        const result = await bridge.apiPost('test-target', tgt);
+        const op = result?.operation_id ? `（操作 ${result.operation_id}）` : '';
+        msg(`示例测试图片已发送${op}`, 'success');
+      } catch (e) {
+        msg('发送失败: ' + e, 'error');
+      }
+    };
+
+    $('btnSave').onclick = save;
+    $('btnRefresh').onclick = load;
+    $('btnCheck').onclick = check;
+
+    document.addEventListener('pointermove', e => {
+      if (state.dragSourceId) updateDragPath(e);
+    });
+
+    document.addEventListener('pointerup', e => {
+      if (!state.dragSourceId) return;
+      // Pointer capture keeps the event on the source card, so resolve the
+      // target under the pointer here as a fallback to the target-card handler.
+      const targetCard = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.target-card');
+      if (targetCard?.dataset.id) {
+        link(state.dragSourceId, targetCard.dataset.id);
+      }
+      stopDrag();
+    });
+    document.addEventListener('pointercancel', stopDrag);
+    window.addEventListener('blur', stopDrag);
+
+    window.addEventListener('resize', () => {
+      requestAnimationFrame(drawLines);
+    });
+
+    function applyContext(context) {
+      if (!context) return;
+      document.documentElement.classList.toggle('light', !context.isDark);
+    }
+
+    (async () => {
+      const context = await bridge.ready();
+      applyContext(context);
+      const offContext = bridge.onContext?.(applyContext);
+      if (offContext) window.addEventListener('beforeunload', offContext, { once: true });
+      bindScrollRedraw();
+      await load();
+    })();
+  </script>
+</body>
+</html>

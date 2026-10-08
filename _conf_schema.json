@@ -1,0 +1,40 @@
+{
+  "bearer_token": {
+    "type": "string",
+    "description": "X API v2 Bearer Token",
+    "hint": "在 X Developer Portal 创建应用后填写。",
+    "secret": true,
+    "default": ""
+  },
+  "api_base_url": {
+    "type": "string",
+    "description": "X API 基础地址",
+    "default": "https://api.x.com/2"
+  },
+  "poll_interval_minutes": {
+    "type": "int",
+    "description": "监控轮询间隔（分钟）",
+    "hint": "服务器部署建议使用 10 分钟或更长间隔。",
+    "default": 10,
+    "slider": {"min": 1, "max": 1440, "step": 1}
+  },
+  "translation_mode": {
+    "type": "string",
+    "description": "推文翻译模式",
+    "options": ["none", "translated", "bilingual"],
+    "default": "none"
+  },
+  "render_backend": {
+    "type": "string",
+    "description": "图片渲染后端",
+    "hint": "2 核 2G 服务器建议使用 astrbot；本地电脑可选择 playwright。",
+    "options": ["astrbot", "playwright"],
+    "default": "astrbot"
+  },
+  "request_timeout": {
+    "type": "int",
+    "description": "X API 请求超时（秒）",
+    "default": 20,
+    "slider": {"min": 5, "max": 120, "step": 1}
+  }
+}

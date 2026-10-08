@@ -1,0 +1,17 @@
+# XMonitor AstrBot Adaptation Notices
+
+## Upstream project
+
+This project is derived from and adapted from:
+
+- Project: [XMonitor](https://github.com/Gu-Haojia/XMonitor)
+- Original author: [Gu-Haojia](https://github.com/Gu-Haojia)
+- License: MIT License
+
+Thank you to Gu-Haojia for creating and maintaining the original XMonitor implementation. The upstream project provided the foundation for the X API v2 client, tweet models and parsing, and the original tweet rendering approach.
+
+## This adaptation
+
+The AstrBot integration, WebUI configuration, account-to-target bindings, monitoring persistence, AstrBot rendering integration, platform session handling, diagnostics, and deployment documentation were added or adapted for this project.
+
+The upstream MIT License and required copyright notice are preserved in [LICENSE](LICENSE).

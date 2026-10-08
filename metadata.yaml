@@ -1,0 +1,14 @@
+name: xmonitor
+display_name: AstrBot XMonitor
+short_desc: 在 AstrBot 中可视化监控 X 账号并推送推文图片
+description: 基于 Gu-Haojia/XMonitor 适配开发的 AstrBot 插件，在 WebUI 中连接 X 账号与群聊/私聊目标，定时获取新推文并渲染推送。
+version: 2.0.6
+author: skyhuangjx
+repo: https://github.com/skyhuangjx/astrbot-plugin-xmonitor
+astrbot_version: ">=4.27.4"
+support_platforms:
+  - aiocqhttp
+  - telegram
+  - discord
+  - kook
+  - lark
