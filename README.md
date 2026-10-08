@@ -1,24 +1,24 @@
 # AstrBot XMonitor 插件
 
 在 AstrBot 中可视化监控 X 账号，并将新推文渲染成图片推送到群聊或私聊。
+<img width="900" height="777" alt="E2D7F2BB74695F13016EFD0A70405717" src="https://github.com/user-attachments/assets/fcce6412-4176-4352-82fb-013fef2a4a18" />
 
-在原版 XMonitor 的基础上增加了嵌入 AstrBot WebUI 的图形界面（GUI）：监控账号和推送目标以卡片展示，添加账号、添加群聊或私聊目标一目了然。用鼠标连线就能配置推送关系，直观、简洁，方便管理。
+
+在原版 XMonitor 的基础上增加了嵌入 AstrBot WebUI：监控账号和推送目标以卡片展示，添加账号、添加群聊或私聊目标一目了然。用鼠标连线就能配置推送关系，直观、简洁，方便管理。
 
 **连线即订阅推送，点击线即取消推送；修改后点击“保存关系”生效。**
-
-仓库地址：<https://github.com/skyhuangjx/astrbot-plugin-xmonitor>
 
 ## 项目来源与致谢
 
 本项目是基于 [Gu-Haojia/XMonitor](https://github.com/Gu-Haojia/XMonitor) 开发的 AstrBot 适配与扩展版本。
 
-特别感谢原作者 **Gu-Haojia** 开发 XMonitor 的基础代码、X API v2 访问逻辑、推文解析模型和原始渲染实现。本项目保留上游 MIT License，并在此基础上增加了 AstrBot 插件入口、WebUI 配置、账号与会话连线、定时监控、游标持久化、AstrBot 图片渲染和平台消息发送适配。
+特别感谢原作者 **Gu-Haojia** 开发 XMonitor 的基础代码、X API v2 访问逻辑、推文解析模型和原始渲染实现。本项目在此基础上增加了 AstrBot 插件入口、WebUI 配置、账号与会话连线、定时监控、游标持久化、AstrBot 图片渲染和平台消息发送适配。
 
-这不是对上游项目的重新署名；上游来源和许可证见 [NOTICE](NOTICE) 与 [LICENSE](LICENSE)。
+## GUI：看得见的推送关系<img width="3320" height="2102" alt="QQ20261008-184504" src="https://github.com/user-attachments/assets/5c4869d8-8792-4edf-8f7e-3574ae2da006" />
 
-## GUI：看得见的推送关系
 
 页面左侧是监控账号，中间是群聊/私聊目标，右侧是“保存关系”和“立即检查”。每个卡片只显示名称，连线关系一眼就能看清。
+<img width="3172" height="1206" alt="QQ20261008-184531" src="https://github.com/user-attachments/assets/5b3abb99-94ac-4b1a-96f7-5f900be07d10" />
 
 | 操作 | 效果 |
 | --- | --- |
@@ -120,7 +120,7 @@ python -m pip install -r requirements.txt
 
 ## 服务器部署
 
-2 核 2G 服务器建议将 `render_backend` 保持为 `astrbot`，使用 AstrBot HTML 渲染服务，避免在服务器上启动 Chromium。
+如服务器配置不高，建议将 `render_backend` 保持为 `astrbot`，使用 AstrBot HTML 渲染服务，避免在服务器上启动 Chromium。
 
 本地电脑可以选择 `playwright`，并安装：
 
