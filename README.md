@@ -2,6 +2,10 @@
 
 在 AstrBot 中可视化监控 X 账号，并将新推文渲染成图片推送到群聊或私聊。
 
+在原版 XMonitor 的基础上增加了嵌入 AstrBot WebUI 的图形界面（GUI）：监控账号和推送目标以卡片展示，添加账号、添加群聊或私聊目标一目了然。用鼠标连线就能配置推送关系，直观、简洁，方便管理。
+
+**连线即订阅推送，点击线即取消推送；修改后点击“保存关系”生效。**
+
 > 当前是发布前草稿。拟议仓库地址：<https://github.com/skyhuangjx/astrbot-plugin-xmonitor>
 
 ## 项目来源与致谢
@@ -12,6 +16,25 @@
 
 这不是对上游项目的重新署名；上游来源和许可证见 [NOTICE](NOTICE) 与 [LICENSE](LICENSE)。
 
+## GUI：看得见的推送关系
+
+页面左侧是监控账号，中间是群聊/私聊目标，右侧是“保存关系”和“立即检查”。每个卡片只显示名称，连线关系一眼就能看清。
+
+| 操作 | 效果 |
+| --- | --- |
+| 添加账号 | 输入 X 用户名和显示名称，生成账号卡片 |
+| 添加目标 | 填写群聊或私聊的 AstrBot 会话信息，生成目标卡片 |
+| 从账号卡片拖到目标卡片 | 建立推送关系；账号的新推文会推送到该目标 |
+| 点击已有连线 | 删除该条推送关系，取消向该目标推送 |
+| 双击卡片 | 在下方表单编辑账号或目标 |
+| 鼠标悬停卡片 | 查看用户名、会话信息及连线数量等详情 |
+| 卡片变绿 | 表示该卡片已有连线；账号还需启用监控 |
+| 点击“保存关系” | 将当前账号、目标和连线保存给后台监控任务 |
+
+例如，A、B 两个账号需要推送到 1 群，就将 A、B 分别连到 1 群；C 只推送到 2 群，就将 C 连到 2 群。一个账号可以连多个群，一个群也可以接收多个账号。
+
+新建连线首次检查只建立基线，之后推送新推文。想马上查看最新一条，使用 `/xmonitor latest @用户名`。
+
 ## 功能
 
 - 在 AstrBot WebUI 中添加 X 账号和群聊/私聊目标；
@@ -20,7 +43,7 @@
 - 支持 `none`、`translated`、`bilingual` 三种翻译模式；
 - 支持 AstrBot HTML 渲染，服务器端默认不启动 Chromium；
 - 支持本地 Playwright 渲染作为可选后端；
-- 对头像等远程资源提供超时和首字母占位降级；
+- 头像加载失败时显示用户首字；本地 Playwright 的图片加载等待设有上限；
 - 提供 `/xmonitor latest`、`/xmonitor check` 和 WebUI 测试入口。
 
 ## 安装
@@ -59,18 +82,41 @@ python -m pip install -r requirements.txt
 
 在目标群或私聊中发送 `/xmonitor where`，复制对应字段。`unified_msg_origin` 是三者组成的完整会话来源，不要把它填入某一个字段。
 
-## 命令
+## Bot 命令与测试方法
+
+在与 Bot 的群聊或私聊中发送以下命令。`/xmonitor` 也可简写为 `/x`。
+
+| 命令 | 用途 |
+| --- | --- |
+| `/xmonitor` 或 `/xmonitor help` | 查看命令帮助 |
+| `/xmonitor where` | 查看当前会话的 `platform_id`、`message_type`、`session_id`，用于添加推送目标 |
+| `/xmonitor status` | 查看 Token 是否已配置、后台任务状态、账号/目标/连线数量、上次检查时间和错误 |
+| `/xmonitor sample none` | 在当前会话发送内置示例图片，测试渲染和发送；不需要 X Token，也不调用翻译 |
+| `/xmonitor test none` | 同上，是示例测试的别名 |
+| `/xmonitor latest @用户名` | 查询并发送该账号最新一条可用推文，验证 X API、渲染和发送；不要求已添加监控关系 |
+| `/xmonitor <X 推文链接或 ID>` | 查询并发送指定推文图片 |
+| `/xmonitor check` | 按已保存的监控关系立即检查新推文，并返回监控状态 |
+
+推荐按以下顺序验证安装：
+
+1. 发送 `/xmonitor sample none`，确认 Bot 能渲染并发送示例图片；
+2. 发送 `/xmonitor where`，将会话字段填入 GUI 的推送目标；
+3. 双击目标卡片，点击下方“测试”，确认示例图片发送到所选目标；
+4. 发送 `/xmonitor latest @用户名 none`，验证真实推文查询；
+5. 添加账号、建立连线并“保存关系”，点击“立即检查”建立基线；之后的新推文按轮询间隔推送；
+6. 使用 `/xmonitor status` 查看后台状态和错误。
+
+右侧“立即检查”和 `/xmonitor check` 执行后台轮询，只有新推文才会发送，首次建立基线或没有更新时不会发送图片。卡片下方的“测试”发送固定示例图片到所选目标；命令示例和手动推文查询发送到命令所在的当前会话。
+
+推文命令末尾可添加 `none`（原文）、`translated`（仅翻译）或 `bilingual`（双语）临时覆盖配置，例如：
 
 ```text
-/xmonitor <X 推文链接或 ID>  手动渲染一条推文
-/xmonitor latest @用户名     获取用户最近一条推文
-/xmonitor sample             本地示例，不需要 Token
-/xmonitor where              显示当前 AstrBot 会话信息
-/xmonitor status             查看监控状态
-/xmonitor check              立即执行一次监控检查
+/xmonitor latest @openai none
+/xmonitor latest @openai bilingual
+/xmonitor https://x.com/openai/status/推文ID translated
 ```
 
-右侧“立即检查”执行后台轮询，没有新推文时不会发送图片；卡片下方的“测试”发送固定示例图片。
+`translated` 和 `bilingual` 使用 AstrBot 当前会话的 LLM provider，需要先配置可用模型。
 
 ## 服务器部署
 
