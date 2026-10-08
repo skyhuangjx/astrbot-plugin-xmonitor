@@ -6,7 +6,7 @@
 
 **连线即订阅推送，点击线即取消推送；修改后点击“保存关系”生效。**
 
-> 当前是发布前草稿。拟议仓库地址：<https://github.com/skyhuangjx/astrbot-plugin-xmonitor>
+仓库地址：<https://github.com/skyhuangjx/astrbot-plugin-xmonitor>
 
 ## 项目来源与致谢
 
